@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/python:3.9
+FROM --platform=linux/amd64 mcr.microsoft.com/devcontainers/anaconda:3
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -12,8 +12,8 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /workspace
 
 # Copy requirements if they exist
-COPY requirements.txt* ./
-RUN if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+#COPY requirements.txt* ./
+#RUN if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
 # Install additional Python packages for data science and ML
 RUN pip install --no-cache-dir \
@@ -24,12 +24,13 @@ RUN pip install --no-cache-dir \
     seaborn \
     jupyter \
     ipykernel \
-    plotly \
-    streamlit
+    plotly 
+
+RUN conda install -y -c conda-forge python=3.10 lenskit && conda clean -afy
 
 # Set environment variables
 ENV PYTHONPATH=/workspace
 ENV JUPYTER_ENABLE_LAB=yes
 
 # Expose Jupyter port
-EXPOSE 8888 
+EXPOSE 8888
