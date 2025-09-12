@@ -36,6 +36,7 @@ ENV/
 *.parquet
 *.feather
 *.npy
+*.index
 *.npz
 *.h5
 
