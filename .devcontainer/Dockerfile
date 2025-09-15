@@ -1,36 +1,31 @@
-FROM --platform=linux/amd64 mcr.microsoft.com/devcontainers/anaconda:3
+# Works on Apple Silicon; use the *current* tag
+FROM mcr.microsoft.com/devcontainers/python:1-3.10-bookworm
+# alt mirror if MCR is flaky:
+# FROM ghcr.io/devcontainers/images/python:1-3.10-bookworm
 
-# Install system dependencies
+# Minimal system deps
 RUN apt-get update && apt-get install -y \
-    git \
-    curl \
-    wget \
-    build-essential \
-    && rm -rf /var/lib/apt/lists/*
+    build-essential git curl wget \
+  && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /workspace
 
-# Copy requirements if they exist
-#COPY requirements.txt* ./
-#RUN if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+# Leverage layer cache
+COPY requirements.txt ./
 
-# Install additional Python packages for data science and ML
-RUN pip install --no-cache-dir \
-    pandas \
-    numpy \
-    scikit-learn \
-    matplotlib \
-    seaborn \
-    jupyter \
-    ipykernel \
-    plotly 
+# Faster rebuilds with pip cache (requires BuildKit)
+# syntax=docker/dockerfile:1.6
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m pip install --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
 
-RUN conda install -y -c conda-forge python=3.10 lenskit && conda clean -afy
+ENV PYTHONPATH=/workspace \
+    JUPYTER_ENABLE_LAB=yes
 
-# Set environment variables
-ENV PYTHONPATH=/workspace
-ENV JUPYTER_ENABLE_LAB=yes
-
-# Expose Jupyter port
 EXPOSE 8888
+
+# Keep container alive for VS Code attach
+CMD ["bash", "-lc", "sleep infinity"]
+
+# Non-root user is already "vscode" in this base
+USER vscode
