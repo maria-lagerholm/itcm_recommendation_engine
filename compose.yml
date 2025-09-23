@@ -1,0 +1,16 @@
+services:
+  itcm-recsys:
+    container_name: itcm-recsys
+    platform: linux/arm64
+    build:
+      context: .                         # repo root
+      dockerfile: .devcontainer/Dockerfile
+    working_dir: /workspace
+    volumes:
+      - .:/workspace:cached
+    environment:
+      PYTHONPATH: /workspace
+      JUPYTER_ENABLE_LAB: "yes"
+    ports:
+      - "8888:8888"
+    command: bash -lc "sleep infinity"
