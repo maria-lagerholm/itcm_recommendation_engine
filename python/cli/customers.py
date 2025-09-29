@@ -22,7 +22,6 @@ def run(cfg_path: str, fill_unknown: str | None = None) -> None:
 
     customers = clean_customer_name_fields(customers)
     if "invoiceCity" in customers.columns:
-        # clean_city_series already applies the exact notebook logic incl. "Unknown"
         customers["invoiceCity"] = clean_city_series(customers["invoiceCity"])
 
     
