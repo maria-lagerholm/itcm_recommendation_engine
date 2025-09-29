@@ -12,6 +12,10 @@ customers:
 transactions:
 	$(PYTHON) -m cli.transactions --cfg $(CFG) $(ARGS)
 
+articles:
+	$(PYTHON) -m cli.articles --cfg $(CFG) $(ARGS)
+
+
 all: customers transactions
 
 help:

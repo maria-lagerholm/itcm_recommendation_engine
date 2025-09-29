@@ -16,7 +16,7 @@ def fix_six_digit_prices(df: pd.DataFrame, *, price_col: str = "price") -> pd.Da
     s = out[price_col].astype("string").str.strip().str.replace(r"\.0$", "", regex=True)
     mask = s.str.fullmatch(r"\d{6}")
     out.loc[mask, price_col] = s.loc[mask].str[-3:].astype(float).values
-    # 🔒 ensure the whole column is numeric afterwards
+    # ensure the whole column is numeric afterwards
     out[price_col] = pd.to_numeric(out[price_col], errors="coerce").astype("Float64")
     return out
 

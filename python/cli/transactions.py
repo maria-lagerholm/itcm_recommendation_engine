@@ -10,7 +10,7 @@ from pipeline.transactions.remove_known_bugs import (
 )
 from pipeline.transactions.currency import (
     fix_six_digit_prices,
-    unify_price_to_sek,   # uses live API if rates=None
+    unify_price_to_sek,
 )
 from pipeline.transactions.customer_enrich import (
     enrich_tx_with_customers,
@@ -58,7 +58,6 @@ def run(cfg_path: str, min_created: str = "2024-06-01") -> None:
         currency_id_col="currencyId",
         out_col="price_sek",
         add_cols=True,
-        # rates=None -> fetch via API
     )
 
     # 5) Country label from currency_country, then drop currency_country
