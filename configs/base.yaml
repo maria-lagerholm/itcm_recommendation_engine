@@ -1,0 +1,4 @@
+external: data/external
+interim: data/interim
+processed: data/processed
+processed_staging: data/processed/processed_staging
