@@ -1,31 +1,40 @@
+# python/pipeline/articles/remove_known_bugs.py
 from __future__ import annotations
 import pandas as pd
 
-# columns you said we can drop early
-DROP_COLS_DEFAULT = (
-    "status", "incommingQuantity", "length", "width", "height",
-    "weight", "fabricId", "fabric",
+# Columns to drop up-front (from your notebook)
+DROP_COLS_DEFAULT: tuple[str, ...] = (
+    "status", "incommingQuantity", "length", "width", "height", "weight",
+    "fabricId", "fabric", "description", "colorId", "color", "sizeId", "size",
+    "audience", "audienceId", "publishedDate", "quantity"
 )
 
-PRICE_COLS_DEFAULT = ("priceSEK", "priceEUR", "priceNOK", "priceDKK")
+# Price columns used to test for "all missing"
+PRICE_COLS_DEFAULT: tuple[str, ...] = ("priceSEK", "priceEUR", "priceNOK", "priceDKK")
 
-def drop_noise_columns(df: pd.DataFrame, cols: tuple[str, ...] = DROP_COLS_DEFAULT) -> pd.DataFrame:
-    """Drop unneeded columns if present."""
-    return df.drop(columns=list(cols), errors="ignore")
+
+def drop_noise_columns(
+    df: pd.DataFrame,
+    *,
+    drop_cols: tuple[str, ...] = DROP_COLS_DEFAULT,
+) -> pd.DataFrame:
+    """Return a copy with the specified columns dropped (ignores if missing)."""
+    out = df.copy()
+    existing = [c for c in drop_cols if c in out.columns]
+    if existing:
+        out = out.drop(columns=existing, errors="ignore")
+    return out
+
 
 def remove_rows_all_prices_na(
     df: pd.DataFrame,
-    price_cols: tuple[str, ...] = PRICE_COLS_DEFAULT
+    *,
+    price_cols: tuple[str, ...] = PRICE_COLS_DEFAULT,
 ) -> pd.DataFrame:
-    """
-    Remove rows where *all* price columns are NA.
-    Works with pandas StringDtype (<NA>) as well as regular NaN.
-    """
-    missing = [c for c in price_cols if c not in df.columns]
-    if missing:
-        # if a price column is missing entirely, treat it as NA for the check by creating it
-        df = df.copy()
-        for c in missing:
-            df[c] = pd.Series(pd.NA, index=df.index, dtype="string")
-    mask_all_na = df[list(price_cols)].isna().all(axis=1)
-    return df.loc[~mask_all_na].reset_index(drop=True)
+    """Return a copy with rows removed where *all* given price columns are NA."""
+    out = df.copy()
+    for c in price_cols:
+        if c not in out.columns:
+            out[c] = pd.NA
+    keep = ~out[list(price_cols)].isna().all(axis=1)
+    return out.loc[keep].reset_index(drop=True)

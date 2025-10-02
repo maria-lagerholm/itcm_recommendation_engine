@@ -87,9 +87,6 @@ def normalize_categories(articles: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     # 4) fill missing category with 'unknown'
     df["category"] = df["category"].fillna("unknown").astype("string")
 
-    # 5) add missing flag and position next to category
-    df["category_missing"] = (df["category"] == "unknown").astype("int8")
-    df = _move_after(df, ["category_missing"], "category")
 
     # minimal stats (for optional logging)
     stats = {
