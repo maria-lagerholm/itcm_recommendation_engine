@@ -22,14 +22,13 @@ from pipeline.transactions.line_totals import (
 )
 from pipeline.transactions.country_label import label_country
 
-
+#------main-----
 def run(cfg_path: str, min_created: str = "2024-06-01") -> None:
     cfg = load_cfg(cfg_path)
     processed = Path(cfg["processed"])
-    out_dir = processed / "processed_staging" 
-    out_dir.mkdir(parents=True, exist_ok=True)
+    out_dir = processed  # Output is now just 'processed', not 'processed_staging'
 
-    # 1) Inputs from processed
+    #------load inputs-----
     tx = pd.read_parquet(processed / "transactions_canonical.parquet")
     articles = pd.read_parquet(
         processed / "articles_clean.parquet",
@@ -37,7 +36,7 @@ def run(cfg_path: str, min_created: str = "2024-06-01") -> None:
     )
     customers = pd.read_parquet(processed / "customers_clean.parquet")
 
-    # 2) Known-bug cleanup + article join + date filter
+    #------known-bug cleanup + article join + date filter-----
     a_lu = prepare_article_lookup(articles)
     tx = remove_known_bugs(
         tx,
@@ -48,10 +47,10 @@ def run(cfg_path: str, min_created: str = "2024-06-01") -> None:
         min_created=min_created,
     )
 
-    # 3) Fix 6-digit raw prices before currency conversion
+    #------fix 6-digit raw prices-----
     tx = fix_six_digit_prices(tx, price_col="price")
 
-    # 4) Convert to SEK using live API rates (adds currency_country + sek_rate)
+    #------convert to SEK-----
     tx = unify_price_to_sek(
         tx,
         price_col="price",
@@ -60,34 +59,33 @@ def run(cfg_path: str, min_created: str = "2024-06-01") -> None:
         add_cols=True,
     )
 
-    # 5) Country label from currency_country, then drop currency_country
+    #------country label-----
     tx = label_country(tx, src_col="currency_country", out_col="country", drop_src=True)
 
-    # 6) Enrich with customer demographics
+    #------enrich with customer demographics-----
     tx = enrich_tx_with_customers(
         tx, customers, id_col="shopUserId", customer_cols=("Age", "Gender")
     )
 
-    # 7) Filter by plausible age range
+    #------filter by plausible age range-----
     tx = filter_tx_by_age(tx, age_col="Age", lo=10, hi=105)
 
-    # 8) Normalize quantity (round → Int64 → string) to mirror notebook
+    #------normalize quantity-----
     tx = normalize_quantity_to_str(tx, quantity_col="quantity")
 
-    # 9) Compute line total in SEK and drop NA/zero totals
+    #------compute line total in SEK and drop NA/zero totals-----
     tx = compute_and_filter_line_total_sek(
         tx,
         price_col="price_sek",
         quantity_col="quantity",
         out_col="line_total_sek",
     )
-    # ensure price is a consistent numeric dtype (not object mix)
     tx["price"] = pd.to_numeric(tx["price"], errors="coerce").astype("Float64")
 
-    # 10) Output
+    #------write output-----
     write_parquet(tx, out_dir / "transactions_clean.parquet")
 
-
+#------cli entrypoint-----
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--cfg", default="configs/base.yaml")

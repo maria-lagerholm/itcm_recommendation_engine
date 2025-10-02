@@ -1,9 +1,10 @@
 services:
+  #------itcm-recsys------
   itcm-recsys:
     container_name: itcm-recsys
     platform: linux/arm64
     build:
-      context: .                         # repo root
+      context: .
       dockerfile: .devcontainer/Dockerfile
     working_dir: /workspace
     volumes:

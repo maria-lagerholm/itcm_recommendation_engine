@@ -1,20 +1,18 @@
 from __future__ import annotations
 import pandas as pd
 
+#------normalize quantity------
 def normalize_quantity_to_str(
     df: pd.DataFrame,
     *,
     quantity_col: str = "quantity",
 ) -> pd.DataFrame:
-    """
-    Convert `quantity` to numeric, round to nearest integer, cast to nullable Int64,
-    then back to string (matching your notebook).
-    """
     out = df.copy()
     q = pd.to_numeric(out[quantity_col], errors="coerce").round().astype("Int64")
     out[quantity_col] = q.astype(str)
     return out
 
+#------compute and filter line total------
 def compute_and_filter_line_total_sek(
     df: pd.DataFrame,
     *,
@@ -22,11 +20,6 @@ def compute_and_filter_line_total_sek(
     quantity_col: str = "quantity",
     out_col: str = "line_total_sek",
 ) -> pd.DataFrame:
-    """
-    - Ensure `price_sek` and `quantity` are numeric
-    - line_total_sek = price_sek * quantity, rounded to 0 decimals
-    - Drop NA or 0 totals
-    """
     out = df.copy()
     out[price_col] = pd.to_numeric(out[price_col], errors="coerce")
     out[quantity_col] = pd.to_numeric(out[quantity_col], errors="coerce")

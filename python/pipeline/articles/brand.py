@@ -1,10 +1,11 @@
 from __future__ import annotations
 import pandas as pd
 
+#------brand normalization helpers-----
 def _norm_brand(s) -> pd.StringDtype:
     if pd.isna(s):
         return pd.NA
-    s = " ".join(str(s).strip().split())  # collapse whitespace
+    s = " ".join(str(s).strip().split())
     return s or pd.NA
 
 def _move_after(df: pd.DataFrame, cols: list[str], after: str) -> pd.DataFrame:
@@ -19,6 +20,7 @@ def _mode_or_first(s: pd.Series) -> str:
     m = s.mode(dropna=True)
     return (m.iat[0] if not m.empty else s.dropna().iat[0]) if s.size else pd.NA
 
+#------normalize brands main-----
 def normalize_brands(
     articles: pd.DataFrame,
     *,
@@ -28,19 +30,9 @@ def normalize_brands(
     add_missing_flag: bool = True,
     backfill_brand_from_id: bool = True,
 ) -> tuple[pd.DataFrame, dict]:
-    """
-    Transform-only brand normalization:
-      - normalize brand text (collapse whitespace; keep original casing)
-      - learn brand → brandId (most frequent id per brand)
-      - backfill missing brandId from brand
-      - (optional) backfill missing brand from brandId using learned id → canonical brand
-      - fill missing brand text with 'unknown'
-      - add brand_missing flag (brandId is NA), placed after brandId
-    Returns (df, stats).
-    """
+
     df = articles.copy()
 
-    # Ensure columns exist and cast to string dtype
     if brand_col not in df.columns:
         df[brand_col] = pd.Series([pd.NA] * len(df), dtype="string")
     if brand_id_col not in df.columns:
@@ -49,18 +41,15 @@ def normalize_brands(
     df[brand_col] = df[brand_col].astype("string").apply(_norm_brand)
     df[brand_id_col] = df[brand_id_col].astype("string").str.strip()
 
-    # Build known pairs and learn mappings
     known = (
         df.dropna(subset=[brand_col, brand_id_col])[[brand_col, brand_id_col]]
           .drop_duplicates()
     )
     if not known.empty:
-        # brand -> most frequent brandId
         name_to_id = (
             known.groupby(brand_col)[brand_id_col]
                  .apply(_mode_or_first)
         )
-        # brandId -> most frequent brand (canonical label)
         id_to_name = (
             known.groupby(brand_id_col)[brand_col]
                  .apply(_mode_or_first)
@@ -69,13 +58,11 @@ def normalize_brands(
         name_to_id = pd.Series(dtype="string")
         id_to_name = pd.Series(dtype="string")
 
-    # Backfill missing brandId from brand
     mask_id_missing = df[brand_id_col].isna() & df[brand_col].notna()
     filled_ids = df.loc[mask_id_missing, brand_col].map(name_to_id).astype("string")
     filled_ids = filled_ids.reindex(df.index)
     df.loc[mask_id_missing, brand_id_col] = filled_ids
 
-    # Optionally backfill missing brand from brandId
     filled_names_ct = 0
     if backfill_brand_from_id:
         mask_name_missing = df[brand_col].isna() & df[brand_id_col].notna()
@@ -84,10 +71,8 @@ def normalize_brands(
         df.loc[mask_name_missing, brand_col] = filled_names
         filled_names_ct = int(mask_name_missing.sum())
 
-    # Fill remaining missing brand text with 'unknown'
     df[brand_col] = df[brand_col].fillna(fill_unknown_text).astype("string")
 
-    # brand_missing flag: where brandId is still NA
     miss_col = "brand_missing"
     df[miss_col] = df[brand_id_col].isna().astype("int8")
     if add_missing_flag:

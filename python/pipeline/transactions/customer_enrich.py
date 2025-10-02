@@ -1,6 +1,7 @@
 from __future__ import annotations
 import pandas as pd
 
+#------enrich transactions with customers------
 def enrich_tx_with_customers(
     tx: pd.DataFrame,
     customers: pd.DataFrame,
@@ -8,10 +9,6 @@ def enrich_tx_with_customers(
     id_col: str = "shopUserId",
     customer_cols: tuple[str, ...] = ("Age", "Gender"),
 ) -> pd.DataFrame:
-    """
-    Left-join selected customer columns into transactions on id_col.
-    Does not change dtypes (assumes parquet-preserved dtypes).
-    """
     needed = (id_col, *customer_cols)
     missing = [c for c in customer_cols if c not in customers.columns]
     if missing:
@@ -24,6 +21,7 @@ def enrich_tx_with_customers(
     )
     return out
 
+#------filter transactions by age------
 def filter_tx_by_age(
     tx: pd.DataFrame,
     *,
@@ -31,6 +29,5 @@ def filter_tx_by_age(
     lo: int = 10,
     hi: int = 105,
 ) -> pd.DataFrame:
-    """Keep rows where Age is NA or lo ≤ Age ≤ hi."""
     mask = tx[age_col].isna() | ((tx[age_col] >= lo) & (tx[age_col] <= hi))
     return tx.loc[mask].reset_index(drop=True)
