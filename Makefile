@@ -26,7 +26,7 @@ combine:
 	$(PYTHON) -m cli.combine --cfg $(CFG) $(ARGS)
 
 #------all------
-all: customers transactions
+all: customers transactions articles combine
 
 #------help------
 help:

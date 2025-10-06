@@ -1,8 +1,7 @@
 services:
-  #------itcm-recsys------
   itcm-recsys:
     container_name: itcm-recsys
-    platform: linux/arm64
+    platform: linux/arm64/v8
     build:
       context: .
       dockerfile: .devcontainer/Dockerfile
@@ -14,4 +13,7 @@ services:
       JUPYTER_ENABLE_LAB: "yes"
     ports:
       - "8888:8888"
+    mem_limit: "12g"
+    shm_size: "2g"
+    cpus: "6"
     command: bash -lc "sleep infinity"

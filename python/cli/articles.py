@@ -39,8 +39,6 @@ def run(cfg_path: str) -> None:
     )
     out_dir = processed
     articles.to_parquet(out_dir / "articles_clean.parquet", index=False)
-    articles_for_sale = articles[articles["forSale"].notna()].copy()
-    articles_for_sale.to_parquet(out_dir / "articles_for_sale.parquet", index=False)
 
 #------cli entrypoint-----
 if __name__ == "__main__":

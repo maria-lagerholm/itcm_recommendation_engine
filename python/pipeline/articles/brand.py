@@ -27,7 +27,7 @@ def normalize_brands(
     brand_col: str = "brand",
     brand_id_col: str = "brandId",
     fill_unknown_text: str = "unknown",
-    add_missing_flag: bool = True,
+    add_missing_flag: bool = True,  # kept for compatibility, but has no effect now
     backfill_brand_from_id: bool = True,
 ) -> tuple[pd.DataFrame, dict]:
 
@@ -73,10 +73,7 @@ def normalize_brands(
 
     df[brand_col] = df[brand_col].fillna(fill_unknown_text).astype("string")
 
-    miss_col = "brand_missing"
-    df[miss_col] = df[brand_id_col].isna().astype("int8")
-    if add_missing_flag:
-        df = _move_after(df, [miss_col], brand_id_col)
+    # No need to create missing_brand column
 
     stats = {
         "known_pairs": int(len(known)),

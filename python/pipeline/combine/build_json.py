@@ -13,7 +13,8 @@ NORDICS: list[str] = ["Sweden", "Denmark", "Finland", "Norway"]
 
 #------helpers-----
 def status_from_orders(n: int) -> str:
-    return "new" if n <= 1 else ("returning" if n <= 3 else "loyal")
+    return "New" if n <= 1 else ("Returning" if n <= 3 else "Loyal")
+
 
 def mode_or_first(s: pd.Series):
     m = s.mode()
