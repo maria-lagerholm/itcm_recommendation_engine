@@ -135,7 +135,14 @@ def to_dataframes(buckets: dict[str, list[dict]]) -> dict[str, pd.DataFrame]:
     tx_city_m  = _ensure(pd.DataFrame(buckets["city_monthly"]),      CS_CITY_MONTHLY)
     tx_cust    = _ensure(pd.DataFrame(buckets["customer_summary"]),  CS_CUST)
     tx_orders  = _ensure(pd.DataFrame(buckets["orders"]),            CS_ORDERS)
-    tx_items   = _ensure(pd.DataFrame(buckets["order_items"]),       CS_ITEMS)
+    order_items   = _ensure(pd.DataFrame(buckets["order_items"]),       CS_ITEMS)
+
+    # --- Remove bad groupId rows from order_items ---
+    BAD = {"12025DK","12025FI","12025NO","12025SE","970300","459978"}
+    if not order_items.empty and "groupId" in order_items.columns:
+        order_items["groupId"] = order_items["groupId"].astype(str).str.strip()
+        order_items = order_items[~order_items["groupId"].isin(BAD)].reset_index(drop=True)
+
     return {
         "country_summary": tx_country,
         "country_channels": tx_cc,
@@ -143,7 +150,7 @@ def to_dataframes(buckets: dict[str, list[dict]]) -> dict[str, pd.DataFrame]:
         "city_monthly": tx_city_m,
         "customer_summary": tx_cust,
         "orders": tx_orders,
-        "order_items": tx_items,
+        "order_items": order_items,
     }
 
 # ---- Persist to parquet ----

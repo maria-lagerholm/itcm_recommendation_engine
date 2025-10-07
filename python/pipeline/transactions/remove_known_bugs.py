@@ -1,11 +1,8 @@
-# python/pipeline/transactions/remove_known_bugs.py
 from __future__ import annotations
 import pandas as pd
 
-#------constants------
 DROP_COLS_DEFAULT = ("invoiceEmail", "orderLineId")
 
-#------prepare article lookup------
 def prepare_article_lookup(
     articles: pd.DataFrame,
     *,
@@ -21,7 +18,6 @@ def prepare_article_lookup(
         raise ValueError(f"Articles not unique on ({group_col}, {sku_col}). Examples: {sample}")
     return a
 
-#------remove known bugs------
 def remove_known_bugs(
     tx: pd.DataFrame,
     article_lookup: pd.DataFrame,
@@ -40,7 +36,6 @@ def remove_known_bugs(
     else:
         art_lu = article_lookup
     df = df.merge(art_lu, on=[group_col, tx_sku_col], how="left", validate="many_to_one")
-    df = df[~(df["category"].isna() & df["brand"].isna())]
     if created_col in df.columns:
         df[created_col] = pd.to_datetime(df[created_col], errors="coerce")
         df = df[df[created_col] >= pd.to_datetime(min_created)]

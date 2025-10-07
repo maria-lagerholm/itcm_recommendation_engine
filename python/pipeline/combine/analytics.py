@@ -176,7 +176,7 @@ def build_top_repurchase_groupids_by_country_unique_days(
 
 # -------------------- Pair Co-occurrences --------------------
 
-def build_pair_cooccurrences(
+def build_pair_complements(
     tx_items: pd.DataFrame,
     support_min: int = 40,
     log_lift_min: float = 0.5,
@@ -306,6 +306,6 @@ def run_analytics(output_dir: Path) -> None:
     build_top_repurchase_groupids_by_country_unique_days(tx_items).to_parquet(
         output_dir / "top_repurchase_groupids_by_country.parquet", index=False
     )
-    build_pair_cooccurrences(tx_items).to_parquet(output_dir / "pair_cooccurrences.parquet", index=False)
+    build_pair_complements(tx_items).to_parquet(output_dir / "pair_complements.parquet", index=False)
     build_top_brands_by_country(tx_items).to_parquet(output_dir / "top_brands_by_country.parquet", index=False)
     count_return_buckets(tx_items).to_parquet(output_dir / "return_buckets_overall.parquet", index=False)
