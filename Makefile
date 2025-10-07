@@ -13,6 +13,12 @@ customers:
 articles:
 	$(PYTHON) -m cli.articles --cfg $(CFG) $(ARGS)
 
+articles_for_recs:
+	$(PYTHON) -m cli.articles_for_recs --cfg $(CFG) $(ARGS)
+
+semantic_similarity:
+	$(PYTHON) -m cli.semantic_similarity --cfg $(CFG) $(ARGS)
+
 transactions:
 	$(PYTHON) -m cli.transactions --cfg $(CFG) $(ARGS)
 
