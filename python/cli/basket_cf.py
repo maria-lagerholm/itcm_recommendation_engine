@@ -2,7 +2,7 @@
 import argparse
 import yaml
 from pathlib import Path
-from pipeline.basket_iicf import run
+from pipeline.articles_for_recs.basket_cf import run
 
 def main():
     p = argparse.ArgumentParser()

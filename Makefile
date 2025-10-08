@@ -29,7 +29,7 @@ basket_cf:
 combine:
 	$(PYTHON) -m cli.combine --cfg $(CFG) $(ARGS)
 
-all: customers transactions articles articles_for_recs semantic_similarity basket_cf combine
+all: customers articles articles_for_recs semantic_similarity transactions basket_cf combine
 
 help:
 	@echo "make customers [CFG=...] [ARGS='--fill-unknown Unknown']"

@@ -30,7 +30,7 @@ def nbrs(a: Counter, p2: Counter, mi: int, mp: int, k: int):
         ni, nj = a[i], a[j]
         if ni < mi or nj < mi:
             continue
-        s = n / (ni + nj - n) # jaccard similarity
+        s = n / (ni + nj - n)
         d[i].append((j, s)); d[j].append((i, s))
     for i in list(d):
         d[i] = sorted(d[i], key=lambda x: x[1], reverse=True)[:k]
@@ -48,7 +48,7 @@ def run(
     min_item_support: int = 10,
     min_pair_support: int = 5,
     k_neighbors: int = 100,
-    score_threshold: float = 0.02, # comes from tuning
+    score_threshold: float = 0.02,
     topk: int = 10,
 ) -> None:
     tx = pd.read_parquet(processed_dir.joinpath("transactions_clean.parquet"), columns=["orderId","groupId","created"])
@@ -65,5 +65,11 @@ def run(
     df = df[df["item_id"].isin(valid)]
     df = df[df["score"] >= score_threshold]
     df["rank"] = df.groupby("item_id")["score"].rank(method="first", ascending=False)
-    df = df[df["rank"] <= topk].sort_values(["item_id", "rank"]).reset_index(drop=True)
+    df = (df[df["rank"] <= topk]
+            .assign(rank=lambda x: x["rank"].astype(int))
+            .sort_values(["item_id","rank"])
+            .pivot(index="item_id", columns="rank", values="neighbor_id"))
+    df = df.rename(columns=lambda r: f"Top {r}").reindex(columns=[f"Top {i}" for i in range(1, topk+1)])
+    df.index.name = "Product ID"
+    df = df.reset_index().fillna("—")
     df.to_parquet(processed_dir.joinpath("basket_completion.parquet"), index=False)
