@@ -19,26 +19,30 @@ def canon(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 def norm_categories(x):
-    cats = [canon(c) for c in str(x).split(",") if str(c).strip() not in MISSING]
-    seen, out = set(), []
-    for c in cats:
-        cl = c.lower()
-        if c and cl not in seen:
+    toks = [canon(c) for c in str(x).split(",")]
+    out, seen = [], set()
+    for c in toks:
+        cl = c.strip().lower()
+        if not cl or cl in MISSING:
+            continue
+        if cl not in seen:
             seen.add(cl)
             out.append(c)
     return out
 
 def short_desc(desc, max_words=30):
-    if not desc: return ""
+    if not desc:
+        return ""
     first = re.split(r"(?<=[.!?])\s+", desc)[0]
     return " ".join(first.split()[:max_words])
 
 def format_colors(col) -> str:
+    # deduplicate, expand delimiters, filter missing/empty
     vals = []
     if isinstance(col, (list, tuple, pd.Series, np.ndarray)):
         for v in list(col):
             s = str(v).strip()
-            if not s or s.lower() in MISSING: 
+            if not s or s.lower() in MISSING:
                 continue
             parts = re.split(r"\s*[,/|;]\s*", s) if any(sep in s for sep in ",/|;") else [s]
             vals.extend(parts)
@@ -59,24 +63,32 @@ def format_colors(col) -> str:
     return ", ".join(out)
 
 def build_text_embed_clean(r):
-    name  = canon(r.get("name", ""))
-    desc  = short_desc(canon(r.get("description", "")), 30)
+    # Compose one text string from separate fields for embedding
+    name = canon(r.get("name", ""))
+    desc = short_desc(canon(r.get("description", "")), 30)
     brand_raw = r.get("brand", "")
     brand = canon(brand_raw) if str(brand_raw).strip() and str(brand_raw).strip().lower() not in MISSING else ""
-    cats  = r.get("categories", []) or []
-    cols  = r.get("colors_str", "")
+    cats = r.get("categories", []) or []
+    cols = r.get("colors_str", "")
     parts, attrs = [], []
-    if name: parts.append(f"{name}.")
-    if desc: parts.append(desc)
-    if brand: attrs.append(brand)
-    if cats:  attrs.append(", ".join(cats))
-    if cols:  attrs.append(cols)
-    if attrs: parts.append(" ".join(attrs) + ".")
+    if name:
+        parts.append(f"{name}.")
+    if desc:
+        parts.append(desc)
+    if brand:
+        attrs.append(brand)
+    if cats:
+        attrs.append(", ".join(cats))
+    if cols:
+        attrs.append(cols)
+    if attrs:
+        parts.append(" ".join(attrs) + ".")
     return re.sub(r"\s+", " ", " ".join(parts)).strip()
 
 def _iter_batches(n, bs):
+    # yields batch start/end indices for batch processing
     for i in range(0, n, bs):
-        yield i, min(i+bs, n)
+        yield i, min(i + bs, n)
 
 def run(
     processed_dir: Path,
@@ -102,6 +114,7 @@ def run(
     groups["colors_str"] = groups["color"].apply(format_colors)
     groups["text"] = groups.apply(build_text_embed_clean, axis=1)
 
+    # group_df: only relevant columns, index reset for alignment
     group_df = groups[["groupId", "text", "color", "colors_str", "categories", "brand", "priceband"]].reset_index(drop=True)
     texts = group_df["text"].fillna("").tolist()
     N = len(texts)
@@ -113,24 +126,36 @@ def run(
         max_len = 4096
     enc.max_seq_length = min(4096, max_len)
 
-    # get dimension from a tiny probe
-    probe = enc.encode(texts[:1] or [""], batch_size=1, normalize_embeddings=True, convert_to_numpy=True, show_progress_bar=False).astype("float32")
+    # Determine embedding dimension
+    probe = enc.encode(
+        texts[:1] or [""],
+        batch_size=1,
+        normalize_embeddings=True,
+        convert_to_numpy=True,
+        show_progress_bar=False,
+    ).astype("float32")
     d = int(probe.shape[1])
     index = faiss.IndexFlatIP(d)
 
-    # 1) stream-encode -> add to FAISS, also memmap to disk for reuse without keeping E in RAM
+    # Streamed encoding and FAISS index population; also save embeddings to memmap for later read
     mmap_path = processed_dir.joinpath("semantic_embeddings.mmap")
     E_mm = np.memmap(mmap_path, dtype="float32", mode="w+", shape=(N, d))
     for s, e in _iter_batches(N, batch_size):
-        Eb = enc.encode(texts[s:e], batch_size=batch_size, normalize_embeddings=True, convert_to_numpy=True, show_progress_bar=False).astype("float32")
+        Eb = enc.encode(
+            texts[s:e],
+            batch_size=batch_size,
+            normalize_embeddings=True,
+            convert_to_numpy=True,
+            show_progress_bar=False,
+        ).astype("float32")
         E_mm[s:e, :] = Eb
         index.add(Eb)
-    del probe  # free small array
+    del probe
     E_mm.flush()
 
-    # 2) batched search (no full E in RAM)
-    I_all = np.empty((N, k+1), dtype=np.int64)
-    S_all = np.empty((N, k+1), dtype=np.float32)
+    # Batched similarity search, embeddings read-only from disk
+    I_all = np.empty((N, k + 1), dtype=np.int64)
+    S_all = np.empty((N, k + 1), dtype=np.float32)
     E_ro = np.memmap(mmap_path, dtype="float32", mode="r", shape=(N, d))
     for s, e in _iter_batches(N, batch_size):
         Eb = np.array(E_ro[s:e, :], copy=False)
@@ -139,6 +164,7 @@ def run(
         S_all[s:e, :] = S
     del E_ro
 
+    # For each product, get k (non-self, above similarity threshold) indices
     neighbors = []
     for i in range(N):
         js, ss = I_all[i], S_all[i]
@@ -154,6 +180,7 @@ def run(
     wide = pd.DataFrame(rows, columns=["Product ID"] + [f"Top {r}" for r in range(1, k + 1)])
     wide.to_parquet(processed_dir.joinpath("semantic_similarity_recs.parquet"), index=False)
 
+    # Remove temp mmap file
     try:
         os.remove(mmap_path)
     except Exception:

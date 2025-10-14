@@ -1,8 +1,6 @@
-# python/pipeline/customers/shopuserid.py
 from __future__ import annotations
 import pandas as pd
 
-#------build id remap-----
 def build_id_remap(
     customers: pd.DataFrame,
     *,
@@ -34,7 +32,6 @@ def build_id_remap(
     remap = pd.concat([remap, self_map], ignore_index=True).drop_duplicates()
     return pd.Series(remap["canonical"].values, index=remap[id_col].values, name="canonical")
 
-#------apply id remap-----
 def apply_id_remap(df: pd.DataFrame, remap: pd.Series, *, id_col: str = "shopUserId") -> pd.DataFrame:
     out = df.copy()
     out[id_col] = out[id_col].map(remap).fillna(out[id_col])

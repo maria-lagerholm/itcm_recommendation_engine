@@ -1,4 +1,3 @@
-# python/cli/transactions.py
 from pathlib import Path
 import argparse
 import pandas as pd
@@ -22,70 +21,34 @@ from pipeline.transactions.line_totals import (
 )
 from pipeline.transactions.country_label import label_country
 
-#------main-----
 def run(cfg_path: str, min_created: str = "2024-06-01") -> None:
     cfg = load_cfg(cfg_path)
     processed = Path(cfg["processed"])
-    out_dir = processed  # Output is now just 'processed', not 'processed_staging'
+    out_dir = processed
 
-    #------load inputs-----
     tx = pd.read_parquet(processed / "transactions_canonical.parquet")
-    articles = pd.read_parquet(
-        processed / "articles_clean.parquet",
-        columns=["sku", "groupId", "category", "brand"],
-    )
+    articles = pd.read_parquet(processed / "articles_clean.parquet",
+                               columns=["sku","groupId","category","brand"])
     customers = pd.read_parquet(processed / "customers_clean.parquet")
 
-    #------known-bug cleanup + article join + date filter-----
     a_lu = prepare_article_lookup(articles)
-    tx = remove_known_bugs(
-        tx,
-        a_lu,
-        group_col="groupId",
-        tx_sku_col="sku",
-        created_col="created",
-        min_created=min_created,
-    )
+    tx = remove_known_bugs(tx, a_lu, min_created=min_created)
 
-    #------fix 6-digit raw prices-----
-    tx = fix_six_digit_prices(tx, price_col="price")
+    tx = fix_six_digit_prices(tx)
+    tx = unify_price_to_sek(tx)
 
-    #------convert to SEK-----
-    tx = unify_price_to_sek(
-        tx,
-        price_col="price",
-        currency_id_col="currencyId",
-        out_col="price_sek",
-        add_cols=True,
-    )
-
-    #------country label-----
     tx = label_country(tx, src_col="currency_country", out_col="country", drop_src=True)
 
-    #------enrich with customer demographics-----
-    tx = enrich_tx_with_customers(
-        tx, customers, id_col="shopUserId", customer_cols=("Age", "Gender")
-    )
-
-    #------filter by plausible age range-----
+    tx = enrich_tx_with_customers(tx, customers, id_col="shopUserId", customer_cols=("Age","Gender"))
     tx = filter_tx_by_age(tx, age_col="Age", lo=10, hi=105)
 
-    #------normalize quantity-----
-    tx = normalize_quantity_to_str(tx, quantity_col="quantity")
+    tx = normalize_quantity_to_str(tx)
+    tx = compute_and_filter_line_total_sek(tx)
 
-    #------compute line total in SEK and drop NA/zero totals-----
-    tx = compute_and_filter_line_total_sek(
-        tx,
-        price_col="price_sek",
-        quantity_col="quantity",
-        out_col="line_total_sek",
-    )
     tx["price"] = pd.to_numeric(tx["price"], errors="coerce").astype("Float64")
-
-    #------write output-----
     write_parquet(tx, out_dir / "transactions_clean.parquet")
 
-#------cli entrypoint-----
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser()
     p.add_argument("--cfg", default="configs/base.yaml")

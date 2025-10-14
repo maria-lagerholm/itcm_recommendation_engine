@@ -1,4 +1,3 @@
-# pipeline/combine/analytics.py
 from __future__ import annotations
 from pathlib import Path
 from typing import Iterable, Tuple
@@ -6,9 +5,6 @@ import itertools, math
 from collections import Counter
 
 import pandas as pd
-
-
-# -------------------- shared helpers --------------------
 
 def _norm_str(s: pd.Series) -> pd.Series:
     s = s.astype("string[python]")
@@ -20,9 +16,6 @@ def _season_from_month(m: int) -> str:
     if m in (3, 4, 5):    return "Spring"
     if m in (6, 7, 8):    return "Summer"
     return "Autumn"
-
-
-# ------------------ Top Categories by Season ------------------
 
 def build_top_categories_by_season(
     tx_items: pd.DataFrame,
@@ -61,9 +54,6 @@ def build_top_categories_by_season(
         .reset_index(drop=True)
     )
     return top[["country","season_label","category","count","rank"]]
-
-
-# ------------------ Top Products (groupId) by Season ------------------
 
 def build_top_groupids_by_season(
     tx_items: pd.DataFrame,
@@ -109,9 +99,6 @@ def build_top_groupids_by_season(
         .reset_index(drop=True)
     )
     return top[["country","season_label","value","name","brand","count","rank"]]
-
-
-# ------------- Top Repurchased Products by Country -------------
 
 def build_top_repurchase_groupids_by_country_unique_days(
     tx_items: pd.DataFrame,
@@ -172,9 +159,6 @@ def build_top_repurchase_groupids_by_country_unique_days(
            .rename(columns={"groupId":"value", "rep_name":"name", "rep_brand":"brand"})
            .reset_index(drop=True))
     return top[["country","value","name","brand","repurchasers","rank"]]
-
-
-# -------------------- Pair Co-occurrences --------------------
 
 def build_pair_complements(
     tx_items: pd.DataFrame,
@@ -239,9 +223,6 @@ def build_pair_complements(
     out.columns = ["Rank by Affinity Strength", "Product A ID", "Product A", "Product B ID", "Product B"]
     return out
 
-
-# -------------------- Top Brands by Country --------------------
-
 def build_top_brands_by_country(tx: pd.DataFrame, keep_top_n: int = 10) -> pd.DataFrame:
     tx = tx.copy()
     tx["quantity"] = pd.to_numeric(tx["quantity"], errors="coerce").fillna(1).astype("int64")
@@ -256,9 +237,6 @@ def build_top_brands_by_country(tx: pd.DataFrame, keep_top_n: int = 10) -> pd.Da
     return (agg[agg["rank"] <= keep_top_n]
               .sort_values(["country","rank"])
               .reset_index(drop=True)[["country","brand","count","rank"]])
-
-
-# -------------------- Return Buckets --------------------
 
 def bucket_return_days(d: int) -> str | pd.NA:
     if pd.isna(d) or d <= 0:          return pd.NA
@@ -295,9 +273,6 @@ def count_return_buckets(tx_items: pd.DataFrame) -> pd.DataFrame:
     counts["order"] = counts["bucket"].map({b:i for i,b in enumerate(order)})
     counts = counts.sort_values("order").drop(columns="order").reset_index(drop=True)
     return counts
-
-
-# -------------------- final --------------------
 
 def run_analytics(output_dir: Path) -> None:
     tx_items = pd.read_parquet(output_dir / "order_items.parquet")

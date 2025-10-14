@@ -1,7 +1,6 @@
 from __future__ import annotations
 import pandas as pd
 
-#------normalize quantity------
 def normalize_quantity_to_str(
     df: pd.DataFrame,
     *,
@@ -12,7 +11,6 @@ def normalize_quantity_to_str(
     out[quantity_col] = q.astype(str)
     return out
 
-#------compute and filter line total------
 def compute_and_filter_line_total_sek(
     df: pd.DataFrame,
     *,

@@ -5,7 +5,6 @@ from typing import Dict, List
 import json
 import pandas as pd
 
-# ---- Stable column schemas ----
 CS_COUNTRY = ["country","total_revenue_sek","customers_count","total_orders","avg_order_value_sek"]
 CS_CITY    = ["country","city","total_revenue_sek","customers_count","total_orders","avg_order_value_sek"]
 CS_CUST    = ["country","city","customer_id","total_orders","total_spent_sek","first_order","last_order","status","age","gender"]
@@ -14,16 +13,13 @@ CS_ITEMS   = ["country","city","customer_id","order_id","sku","groupId","created
 CS_CITY_MONTHLY = ["country","city","year_month","total_revenue_sek"]
 CS_COUNTRY_CHANNEL = ["country","channel","customers_count"]
 
-# ---- I/O helpers ----
 def load_json(path: Path) -> dict:
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
 
 def save_parquet(tx: pd.DataFrame, path: Path) -> None:
-    # Assumes parent directory exists (per your setup)
     tx.to_parquet(path, index=False)
 
-# ---- DataFrame utilities ----
 def _ensure(tx: pd.DataFrame | None, cols: List[str]) -> pd.DataFrame:
     if tx is None or tx.empty:
         return pd.DataFrame({c: pd.Series([], dtype="object") for c in cols})[cols]
@@ -32,7 +28,6 @@ def _ensure(tx: pd.DataFrame | None, cols: List[str]) -> pd.DataFrame:
             tx[c] = pd.NA
     return tx[cols]
 
-# ---- JSON shape helpers ----
 def _unwrap(obj: dict, hint: str) -> tuple[str, dict]:
     if isinstance(obj, dict) and len(obj) == 1 and isinstance(next(iter(obj.values())), dict):
         k = next(iter(obj.keys()))
@@ -114,7 +109,6 @@ def flatten_country(obj: dict, country_hint: str) -> dict[str, list[dict]]:
                     })
     return out
 
-# ---- Aggregation orchestrator ----
 def collect_buckets(country_files: Dict[str, Path]) -> dict[str, list[dict]]:
     buckets = {k: [] for k in [
         "country_summary","country_channels","city_summary","city_monthly","customer_summary","orders","order_items"
@@ -127,7 +121,6 @@ def collect_buckets(country_files: Dict[str, Path]) -> dict[str, list[dict]]:
             buckets[k].extend(v)
     return buckets
 
-# ---- Materialize dataframes (fixed schemas) ----
 def to_dataframes(buckets: dict[str, list[dict]]) -> dict[str, pd.DataFrame]:
     tx_country = _ensure(pd.DataFrame(buckets["country_summary"]),   CS_COUNTRY)
     tx_cc      = _ensure(pd.DataFrame(buckets["country_channels"]),  CS_COUNTRY_CHANNEL)
@@ -153,7 +146,6 @@ def to_dataframes(buckets: dict[str, list[dict]]) -> dict[str, pd.DataFrame]:
         "order_items": order_items,
     }
 
-# ---- Persist to parquet ----
 def write_all_parquet(txs: dict[str, pd.DataFrame], out_dir: Path) -> None:
     save_parquet(txs["country_summary"],   out_dir / "country_summary.parquet")
     save_parquet(txs["country_channels"],  out_dir / "country_customers_by_channel.parquet")
@@ -163,7 +155,6 @@ def write_all_parquet(txs: dict[str, pd.DataFrame], out_dir: Path) -> None:
     save_parquet(txs["orders"],            out_dir / "orders.parquet")
     save_parquet(txs["order_items"],       out_dir / "order_items.parquet")
 
-# ---- Convenience wrapper used by combine.py ----
 def build_tables_from_dir(input_dir: Path, output_dir: Path) -> None:
     country_files = {
         "Sweden":  input_dir / "Sweden.json",

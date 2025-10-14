@@ -1,11 +1,8 @@
-#------imports------
 from __future__ import annotations
 import pandas as pd
 
-#------constants------
 COUNTRY_MAP_ALPHA = {"SE": "Sweden", "DK": "Denmark", "FI": "Finland", "NO": "Norway"}
 
-#------functions------
 def label_country(
     df: pd.DataFrame,
     *,

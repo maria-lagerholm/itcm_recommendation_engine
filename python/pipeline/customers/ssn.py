@@ -1,6 +1,4 @@
-# python/pipeline/customers/ssn.py
 
-#------imports and constants-----
 from __future__ import annotations
 import re
 from datetime import date
@@ -9,21 +7,18 @@ import pandas as pd
 S = pd.StringDtype()
 COUNTRY_MAP = {"58": "DK", "160": "NO", "205": "SE", "72": "FI"}
 
-#------safe date-----
 def _safe_date(y, m, d):
     try:
         return date(int(y), int(m), int(d))
     except Exception:
         return None
 
-#------age from birthdate-----
 def _age_from_birthdate(born):
     if not born:
         return None
     today = date.today()
     return today.year - born.year - ((today.month, today.day) < (born.month, born.day))
 
-#------parse birthdate from ssn-----
 def _parse_birthdate(ssn_str: str, country: str):
     if pd.isna(ssn_str):
         return None
@@ -74,7 +69,6 @@ def _parse_birthdate(ssn_str: str, country: str):
         return None
     return None
 
-#------get gender and age from ssn-----
 def get_gender_age_from_ssn(ssn, country_id):
     if pd.isna(ssn):
         return None, None
@@ -102,7 +96,6 @@ def get_gender_age_from_ssn(ssn, country_id):
     age = _age_from_birthdate(_parse_birthdate(ssn_str, country))
     return gender, age
 
-#------derive gender and age columns-----
 def derive_gender_age(df: pd.DataFrame,
                       *, ssn_col="invoiceSSN", country_col="invoiceCountryId",
                       gender_col="Gender", age_col="Age") -> pd.DataFrame:
@@ -113,7 +106,6 @@ def derive_gender_age(df: pd.DataFrame,
     )
     return out
 
-#------filter age range-----
 def filter_age_range(df: pd.DataFrame, *, age_col="Age", lo=10, hi=105) -> pd.DataFrame:
     mask = df[age_col].isna() | ((df[age_col] >= lo) & (df[age_col] <= hi))
     return df.loc[mask].reset_index(drop=True)

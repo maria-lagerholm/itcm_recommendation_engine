@@ -1,11 +1,7 @@
-# python/pipeline/transactions/currency.py
-
-#------imports------
 from __future__ import annotations
 import pandas as pd
 import requests
 
-#------constants------
 CURRENCYID_TO_COUNTRY = {
     "40":  "DK",
     "134": "SE",
@@ -13,7 +9,6 @@ CURRENCYID_TO_COUNTRY = {
     "50":  "FI",
 }
 
-#------fix six digit prices------
 def fix_six_digit_prices(df: pd.DataFrame, *, price_col: str = "price") -> pd.DataFrame:
     out = df.copy()
     s = out[price_col].astype("string").str.strip().str.replace(r"\.0$", "", regex=True)
@@ -22,7 +17,6 @@ def fix_six_digit_prices(df: pd.DataFrame, *, price_col: str = "price") -> pd.Da
     out[price_col] = pd.to_numeric(out[price_col], errors="coerce").astype("Float64")
     return out
 
-#------fetch sek rates------
 def fetch_sek_rates(timeout: int = 10) -> dict[str, float]:
     resp = requests.get(
         "https://api.frankfurter.app/latest",
@@ -41,7 +35,6 @@ def fetch_sek_rates(timeout: int = 10) -> dict[str, float]:
         "FI": sek_per_eur,
     }
 
-#------unify price to sek------
 def unify_price_to_sek(
     df: pd.DataFrame,
     *,

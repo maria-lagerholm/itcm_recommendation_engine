@@ -1,16 +1,12 @@
-from __future__ import annotations
 import pandas as pd
 import requests
 
-# --- Live rates with fallback (SEK per unit) ---------------------------------
 def fetch_sek_rates_from_frankfurter(timeout: int = 8) -> dict[str, float | str]:
-    fallback: dict[str, float | str] = {"EUR": 11.50, "NOK": 1.00, "DKK": 1.55, "asof": "fallback"}
+    fb = {"EUR": 11.50, "NOK": 1.00, "DKK": 1.55, "asof": "fallback"}
     try:
-        r = requests.get(
-            "https://api.frankfurter.app/latest",
-            params={"base": "EUR", "symbols": "SEK,NOK,DKK"},
-            timeout=timeout,
-        )
+        r = requests.get("https://api.frankfurter.app/latest",
+                         params={"base": "EUR", "symbols": "SEK,NOK,DKK"},
+                         timeout=timeout)
         r.raise_for_status()
         data = r.json()
         eur = float(data["rates"]["SEK"])
@@ -18,81 +14,49 @@ def fetch_sek_rates_from_frankfurter(timeout: int = 8) -> dict[str, float | str]
         dkk = eur / float(data["rates"]["DKK"])
         return {"EUR": eur, "NOK": nok, "DKK": dkk, "asof": data.get("date", "unknown")}
     except Exception:
-        return fallback
+        return fb
 
-# --- Helpers -----------------------------------------------------------------
 def _to_float_series(s: pd.Series) -> pd.Series:
     if s.dtype.kind in "fi":
         return s.astype("float64")
-    s = (
-        s.astype("string")
-         .str.strip()
+    s = (s.astype("string").str.strip()
          .str.replace("\u00A0", "", regex=False)
          .str.replace(" ", "", regex=False)
-         .str.replace(",", ".", regex=False)
-    )
+         .str.replace(",", ".", regex=False))
     return pd.to_numeric(s, errors="coerce").astype("float64")
 
-# --- Main transform -----------------------------------------------------------
 def fill_priceSEK_no_decimals(
     articles: pd.DataFrame,
     *,
-    price_cols: tuple[str, ...] = ("priceSEK", "priceEUR", "priceNOK", "priceDKK"),
+    price_cols=("priceSEK", "priceEUR", "priceNOK", "priceDKK"),
     fetch_timeout: int = 8,
     rates: dict[str, float] | None = None,
     sku_col: str = "sku",
     overrides_priceSEK: dict[str, int | str] | None = None,
-) -> tuple[pd.DataFrame, dict]:
+) -> pd.DataFrame:
     pSEK, pEUR, pNOK, pDKK = price_cols
     df = articles.copy()
 
-    for col in (pSEK, pEUR, pNOK, pDKK):
-        if col not in df.columns:
-            df[col] = pd.NA
+    for c in price_cols:
+        if c not in df:
+            df[c] = pd.NA
 
-    if rates is None:
-        r = fetch_sek_rates_from_frankfurter(timeout=fetch_timeout)
-        rates_used = {"EUR": float(r["EUR"]), "NOK": float(r["NOK"]), "DKK": float(r["DKK"])}
-        asof = str(r.get("asof", "unknown"))
-    else:
-        rates_used = {k: float(v) for k, v in rates.items()}
-        asof = "provided"
+    r = rates or fetch_sek_rates_from_frankfurter(timeout=fetch_timeout)
+    R = {"EUR": float(r["EUR"]), "NOK": float(r["NOK"]), "DKK": float(r["DKK"])}
 
-    mask = df[pSEK].isna()
-    initial_missing = int(mask.sum())
-    filled_rows_before_overrides = 0
+    cand = (_to_float_series(df[pEUR]) * R["EUR"]) \
+        .combine_first(_to_float_series(df[pNOK]) * R["NOK"]) \
+        .combine_first(_to_float_series(df[pDKK]) * R["DKK"])
 
-    if mask.any():
-        eur_sek = _to_float_series(df.loc[mask, pEUR]) * rates_used["EUR"]
-        nok_sek = _to_float_series(df.loc[mask, pNOK]) * rates_used["NOK"]
-        dkk_sek = _to_float_series(df.loc[mask, pDKK]) * rates_used["DKK"]
+    existing = pd.to_numeric(df[pSEK], errors="coerce")
+    df[pSEK] = existing.combine_first(cand).round(0).astype("Int64")
 
-        cand = eur_sek.fillna(nok_sek).fillna(dkk_sek)
-        df.loc[mask, pSEK] = cand.round(0).astype("Int64").astype("string")
-        filled_rows_before_overrides = int(df.loc[mask, pSEK].notna().sum())
-
-    df[pSEK] = df[pSEK].astype("string")
-
-    overrides_applied = 0
     if overrides_priceSEK:
         if sku_col not in df.columns:
             raise KeyError(f"SKU column '{sku_col}' not found in DataFrame.")
-        skus = df[sku_col].astype("string").str.lower()
-        ov = {
-            str(k).lower(): (pd.NA if pd.isna(v) else str(int(v)))
-            for k, v in overrides_priceSEK.items()
-        }
-        ov_series = skus.map(ov)
+        ov_map = {str(k).lower(): v for k, v in overrides_priceSEK.items()}
+        ov_series = df[sku_col].astype("string").str.lower().map(ov_map)
         idx = ov_series.notna()
-        df.loc[idx, pSEK] = ov_series[idx]
-        overrides_applied = int(idx.sum())
+        df.loc[idx, pSEK] = pd.to_numeric(ov_series[idx], errors="coerce").round(0).astype("Int64")
 
-    stats = {
-        "asof": asof,
-        "initial_missing_priceSEK": initial_missing,
-        "filled_rows": filled_rows_before_overrides,
-        "overrides_applied": overrides_applied,
-        "still_missing_priceSEK": int(df[pSEK].isna().sum()),
-        "unique_priceSEK_nonnull": int(df[pSEK].dropna().nunique()),
-    }
-    return df.reset_index(drop=True), stats
+    return df.reset_index(drop=True)

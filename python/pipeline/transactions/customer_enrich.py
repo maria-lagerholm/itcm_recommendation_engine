@@ -1,7 +1,6 @@
 from __future__ import annotations
 import pandas as pd
 
-#------enrich transactions with customers------
 def enrich_tx_with_customers(
     tx: pd.DataFrame,
     customers: pd.DataFrame,
@@ -21,7 +20,6 @@ def enrich_tx_with_customers(
     )
     return out
 
-#------filter transactions by age------
 def filter_tx_by_age(
     tx: pd.DataFrame,
     *,

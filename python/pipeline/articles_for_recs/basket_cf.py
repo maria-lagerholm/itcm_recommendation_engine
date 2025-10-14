@@ -10,14 +10,15 @@ def mk_baskets(df: pd.DataFrame) -> pd.DataFrame:
     x = df.copy()
     x["created"] = pd.to_datetime(x["created"], errors="coerce")
     return x.groupby("orderId", as_index=False).agg(
-        items=("groupId", lambda s: list(dict.fromkeys(map(str, s)))),
+        # preserve first occurrence order and dedupe
+        items=("groupId", lambda s: s.astype(str).drop_duplicates().tolist()),
         t=("created", "max"),
     )
 
 def supports(baskets: pd.DataFrame):
-    a = Counter(); p2 = Counter()
-    for s in baskets["items"]:
-        u = list(dict.fromkeys(map(str, s)))
+    a = Counter()
+    p2 = Counter()
+    for u in baskets["items"]:
         a.update(u)
         p2.update(tuple(sorted(c)) for c in combinations(u, 2))
     return a, p2
@@ -25,23 +26,23 @@ def supports(baskets: pd.DataFrame):
 def nbrs(a: Counter, p2: Counter, mi: int, mp: int, k: int):
     d = defaultdict(list)
     for (i, j), n in p2.items():
-        if n < mp: 
+        if n < mp:
             continue
         ni, nj = a[i], a[j]
         if ni < mi or nj < mi:
             continue
+        # Jaccard
         s = n / (ni + nj - n)
-        d[i].append((j, s)); d[j].append((i, s))
-    for i in list(d):
-        d[i] = sorted(d[i], key=lambda x: x[1], reverse=True)[:k]
+        d[i].append((j, s))
+        d[j].append((i, s))
+    for i, lst in list(d.items()):
+        lst.sort(key=lambda x: x[1], reverse=True)
+        d[i] = lst[:k]
     return d
 
 def nb_df(nb: dict) -> pd.DataFrame:
-    r = []
-    for i, lst in nb.items():
-        for j, s in lst:
-            r.append((str(i), str(j), float(s)))
-    return pd.DataFrame(r, columns=["item_id", "neighbor_id", "score"])
+    rows = [(str(i), str(j), float(s)) for i, lst in nb.items() for j, s in lst]
+    return pd.DataFrame(rows, columns=["item_id", "neighbor_id", "score"])
 
 def run(
     processed_dir: Path,
@@ -51,25 +52,35 @@ def run(
     score_threshold: float = 0.02,
     topk: int = 10,
 ) -> None:
-    tx = pd.read_parquet(processed_dir.joinpath("transactions_clean.parquet"), columns=["orderId","groupId","created"])
+    tx = pd.read_parquet(
+        processed_dir / "transactions_clean.parquet",
+        columns=["orderId", "groupId", "created"],
+    )
     tx = tx[~tx["groupId"].astype(str).str.strip().isin(BAD)].reset_index(drop=True)
+
     baskets = mk_baskets(tx)
     a_all, p2_all = supports(baskets)
     nb_all = nbrs(a_all, p2_all, mi=min_item_support, mp=min_pair_support, k=k_neighbors)
 
-    art = pd.read_parquet(processed_dir.joinpath("articles_for_recs.parquet"))
+    art = pd.read_parquet(processed_dir / "articles_for_recs.parquet")
     valid = set(art["groupId"].astype(str).unique())
 
     df = nb_df(nb_all)
-    df = df[df["neighbor_id"].isin(valid)]
-    df = df[df["item_id"].isin(valid)]
+    # keep only neighbors and items that exist in catalog
+    df = df[df["neighbor_id"].isin(valid) & df["item_id"].isin(valid)]
+    # threshold + rank + topk pivot
     df = df[df["score"] >= score_threshold]
     df["rank"] = df.groupby("item_id")["score"].rank(method="first", ascending=False)
-    df = (df[df["rank"] <= topk]
-            .assign(rank=lambda x: x["rank"].astype(int))
-            .sort_values(["item_id","rank"])
-            .pivot(index="item_id", columns="rank", values="neighbor_id"))
-    df = df.rename(columns=lambda r: f"Top {r}").reindex(columns=[f"Top {i}" for i in range(1, topk+1)])
-    df.index.name = "Product ID"
-    df = df.reset_index().fillna("—")
-    df.to_parquet(processed_dir.joinpath("basket_completion.parquet"), index=False)
+    df = (
+        df[df["rank"] <= topk]
+        .assign(rank=lambda x: x["rank"].astype(int))
+        .sort_values(["item_id", "rank"])
+        .pivot(index="item_id", columns="rank", values="neighbor_id")
+        .rename(columns=lambda r: f"Top {r}")
+        .reindex(columns=[f"Top {i}" for i in range(1, topk + 1)])
+        .reset_index()
+        .rename(columns={"item_id": "Product ID"})
+        .fillna("—")
+    )
+
+    df.to_parquet(processed_dir / "basket_completion.parquet", index=False)
