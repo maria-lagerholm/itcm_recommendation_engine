@@ -10,10 +10,26 @@ services:
       - .:/workspace:cached
     environment:
       PYTHONPATH: /workspace
-      JUPYTER_ENABLE_LAB: "yes"
+      TZ: Europe/Stockholm
+    profiles: ["dev"]
+    command: bash -lc "sleep infinity"
     ports:
       - "8888:8888"
     mem_limit: "12g"
     shm_size: "2g"
     cpus: "6"
-    command: bash -lc "sleep infinity"
+
+  itcm-recsys-prod:
+    container_name: itcm-recsys-prod
+    platform: linux/arm64/v8
+    build:
+      context: .
+      dockerfile: .devcontainer/Dockerfile
+    working_dir: /workspace
+    volumes:
+        - .:/workspace:cached
+        - ./.secrets:/run/secrets:ro    
+    environment:
+      PYTHONPATH: /workspace
+      TZ: Europe/Stockholm
+    restart: unless-stopped

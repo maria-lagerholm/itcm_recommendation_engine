@@ -47,3 +47,6 @@ ENV/
 # Logs, cache
 *.log
 .cache/
+
+# Secrets directory
+.secrets/
