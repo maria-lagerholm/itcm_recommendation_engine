@@ -4,6 +4,9 @@ from pathlib import Path
 from typing import Dict, List
 import json
 import pandas as pd
+import collections
+from collections import defaultdict
+from datetime import datetime
 
 CS_COUNTRY = ["country","total_revenue_sek","customers_count","total_orders","avg_order_value_sek"]
 CS_CITY    = ["country","city","total_revenue_sek","customers_count","total_orders","avg_order_value_sek"]
@@ -12,6 +15,7 @@ CS_ORDERS  = ["country","city","customer_id","order_id","created","order_total_s
 CS_ITEMS   = ["country","city","customer_id","order_id","sku","groupId","created","quantity","price_sek","name","line_total_sek","type","brand","category","price"]
 CS_CITY_MONTHLY = ["country","city","year_month","total_revenue_sek"]
 CS_COUNTRY_CHANNEL = ["country","channel","customers_count"]
+CS_COUNTRY_CHANNEL_BY_MONTH = ["country","channel","year_month","customers_count"]
 
 def load_json(path: Path) -> dict:
     with path.open("r", encoding="utf-8") as f:
@@ -36,7 +40,6 @@ def _unwrap(obj: dict, hint: str) -> tuple[str, dict]:
         raise ValueError("Top-level JSON must be an object/dict")
     return hint, obj
 
-# ---- Flatten country JSON → row buckets ----
 def flatten_country(obj: dict, country_hint: str) -> dict[str, list[dict]]:
     country, root = _unwrap(obj, country_hint)
     out = {
@@ -48,6 +51,7 @@ def flatten_country(obj: dict, country_hint: str) -> dict[str, list[dict]]:
             "avg_order_value_sek": root.get("avg_order_value_sek"),
         }],
         "country_channels": [],
+        "country_channels_by_month": [],  # <-- Add missing initialization
         "city_summary": [],
         "city_monthly": [],
         "customer_summary": [],
@@ -62,6 +66,8 @@ def flatten_country(obj: dict, country_hint: str) -> dict[str, list[dict]]:
             "customers_count": cnt,
         })
 
+    cc_monthly_sets: dict[tuple[str, str], set] = defaultdict(set)
+
     for city, cnode in (root.get("cities") or {}).items():
         out["city_summary"].append({
             "country": country, "city": city,
@@ -71,9 +77,11 @@ def flatten_country(obj: dict, country_hint: str) -> dict[str, list[dict]]:
             "avg_order_value_sek": cnode.get("avg_order_value_sek"),
         })
 
+        # monthly map { 'YYYY-MM': revenue }
         for ym, rev in (cnode.get("monthly_revenue_sek") or {}).items():
             out["city_monthly"].append({
-                "country": country, "city": city,
+                "country": country,
+                "city": city,
                 "year_month": ym,
                 "total_revenue_sek": rev,
             })
@@ -81,7 +89,9 @@ def flatten_country(obj: dict, country_hint: str) -> dict[str, list[dict]]:
         for cust_id, cst in (cnode.get("customers") or {}).items():
             summ = cst.get("summary") or {}
             out["customer_summary"].append({
-                "country": country, "city": city, "customer_id": cust_id,
+                "country": country,
+                "city": city,
+                "customer_id": cust_id,
                 "total_orders": summ.get("total_orders"),
                 "total_spent_sek": summ.get("total_spent_sek"),
                 "first_order": summ.get("first_order"),
@@ -90,13 +100,20 @@ def flatten_country(obj: dict, country_hint: str) -> dict[str, list[dict]]:
                 "age": summ.get("age"),
                 "gender": summ.get("gender"),
             })
+
             for order_id, ordn in (cst.get("orders") or {}).items():
+                created = ordn.get("created")
+                order_type = ordn.get("order_type")
+                if order_type and isinstance(created, str):
+                    ym = created[:7]
+                    cc_monthly_sets[(order_type, ym)].add(str(cust_id))
+
                 out["orders"].append({
                     "country": country, "city": city, "customer_id": cust_id, "order_id": order_id,
-                    "created": ordn.get("created"),
+                    "created": created,
                     "order_total_sek": ordn.get("order_total_sek"),
                     "n_items": ordn.get("n_items"),
-                    "order_type": ordn.get("order_type"),
+                    "order_type": order_type,
                     "price": ordn.get("price"),
                 })
                 for it in (ordn.get("items") or []):
@@ -107,11 +124,21 @@ def flatten_country(obj: dict, country_hint: str) -> dict[str, list[dict]]:
                         "line_total_sek": it.get("line_total_sek"), "type": it.get("type"),
                         "brand": it.get("brand"), "category": it.get("category"), "price": it.get("price"),
                     })
+
+
+    for (channel, year_month), cust_set in sorted(cc_monthly_sets.items(), key=lambda x: (x[0][0], x[0][1])):
+        out["country_channels_by_month"].append({
+            "country": country,
+            "channel": channel,
+            "year_month": year_month,
+            "customers_count": len(cust_set),
+        })
+
     return out
 
 def collect_buckets(country_files: Dict[str, Path]) -> dict[str, list[dict]]:
     buckets = {k: [] for k in [
-        "country_summary","country_channels","city_summary","city_monthly","customer_summary","orders","order_items"
+        "country_summary","country_channels", "country_channels_by_month", "city_summary","city_monthly","customer_summary","orders","order_items"
     ]}
     for name, path in country_files.items():
         if not path.exists():
@@ -122,13 +149,14 @@ def collect_buckets(country_files: Dict[str, Path]) -> dict[str, list[dict]]:
     return buckets
 
 def to_dataframes(buckets: dict[str, list[dict]]) -> dict[str, pd.DataFrame]:
-    tx_country = _ensure(pd.DataFrame(buckets["country_summary"]),   CS_COUNTRY)
-    tx_cc      = _ensure(pd.DataFrame(buckets["country_channels"]),  CS_COUNTRY_CHANNEL)
-    tx_city    = _ensure(pd.DataFrame(buckets["city_summary"]),      CS_CITY)
-    tx_city_m  = _ensure(pd.DataFrame(buckets["city_monthly"]),      CS_CITY_MONTHLY)
-    tx_cust    = _ensure(pd.DataFrame(buckets["customer_summary"]),  CS_CUST)
-    tx_orders  = _ensure(pd.DataFrame(buckets["orders"]),            CS_ORDERS)
-    order_items   = _ensure(pd.DataFrame(buckets["order_items"]),       CS_ITEMS)
+    tx_country = _ensure(pd.DataFrame(buckets.get("country_summary", [])),   CS_COUNTRY)
+    tx_cc      = _ensure(pd.DataFrame(buckets.get("country_channels", [])),  CS_COUNTRY_CHANNEL)
+    tx_city    = _ensure(pd.DataFrame(buckets.get("city_summary", [])),      CS_CITY)
+    tx_city_m  = _ensure(pd.DataFrame(buckets.get("city_monthly", [])),      CS_CITY_MONTHLY)
+    tx_cust    = _ensure(pd.DataFrame(buckets.get("customer_summary", [])),  CS_CUST)
+    tx_orders  = _ensure(pd.DataFrame(buckets.get("orders", [])),            CS_ORDERS)
+    tx_cc_by_month = _ensure(pd.DataFrame(buckets.get("country_channels_by_month", [])), CS_COUNTRY_CHANNEL_BY_MONTH)
+    order_items   = _ensure(pd.DataFrame(buckets.get("order_items", [])),       CS_ITEMS)
 
     # --- Remove bad groupId rows from order_items ---
     BAD = {"12025DK","12025FI","12025NO","12025SE","970300","459978"}
@@ -139,6 +167,7 @@ def to_dataframes(buckets: dict[str, list[dict]]) -> dict[str, pd.DataFrame]:
     return {
         "country_summary": tx_country,
         "country_channels": tx_cc,
+        "country_channels_by_month": tx_cc_by_month,
         "city_summary": tx_city,
         "city_monthly": tx_city_m,
         "customer_summary": tx_cust,
@@ -149,6 +178,7 @@ def to_dataframes(buckets: dict[str, list[dict]]) -> dict[str, pd.DataFrame]:
 def write_all_parquet(txs: dict[str, pd.DataFrame], out_dir: Path) -> None:
     save_parquet(txs["country_summary"],   out_dir / "country_summary.parquet")
     save_parquet(txs["country_channels"],  out_dir / "country_customers_by_channel.parquet")
+    save_parquet(txs["country_channels_by_month"],  out_dir / "country_customers_by_channel_by_month.parquet")
     save_parquet(txs["city_summary"],      out_dir / "city_summary.parquet")
     save_parquet(txs["city_monthly"],      out_dir / "city_monthly_revenue.parquet")
     save_parquet(txs["customer_summary"],  out_dir / "customer_summary.parquet")
