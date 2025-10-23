@@ -1,52 +1,27 @@
-# Ignore data folders (do not commit any actual data files)
-data/raw/
-data/interim/
-data/processed/
-data/external/
-
-# Ignore trained models
 models/
-
-# Jupyter and Python junk
 *.ipynb_checkpoints
 __pycache__/
 *.pyc
 *.pyo
-
-# MLflow local runs (if used)
 mlruns/
-
-# System files
 .DS_Store
-
-# OS/Editor temporary files
 *.swp
 *.swo
 *.tmp
 *.bak
-
-# Virtual environments
 .env
 .venv
 env/
 venv/
 ENV/
-
-# Parquet, Feather, Numpy, large data files
 *.parquet
 *.feather
 *.npy
 *.index
 *.npz
 *.h5
-
-# CSV/TSV (if you save large outputs in notebooks)
 *.csv
 *.tsv
-
-# Logs, cache
 *.log
 .cache/
-
-# Secrets directory
 .secrets/

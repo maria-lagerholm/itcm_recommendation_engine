@@ -51,7 +51,7 @@ def flatten_country(obj: dict, country_hint: str) -> dict[str, list[dict]]:
             "avg_order_value_sek": root.get("avg_order_value_sek"),
         }],
         "country_channels": [],
-        "country_channels_by_month": [],  # <-- Add missing initialization
+        "country_channels_by_month": [],
         "city_summary": [],
         "city_monthly": [],
         "customer_summary": [],
@@ -77,7 +77,6 @@ def flatten_country(obj: dict, country_hint: str) -> dict[str, list[dict]]:
             "avg_order_value_sek": cnode.get("avg_order_value_sek"),
         })
 
-        # monthly map { 'YYYY-MM': revenue }
         for ym, rev in (cnode.get("monthly_revenue_sek") or {}).items():
             out["city_monthly"].append({
                 "country": country,
@@ -158,7 +157,6 @@ def to_dataframes(buckets: dict[str, list[dict]]) -> dict[str, pd.DataFrame]:
     tx_cc_by_month = _ensure(pd.DataFrame(buckets.get("country_channels_by_month", [])), CS_COUNTRY_CHANNEL_BY_MONTH)
     order_items   = _ensure(pd.DataFrame(buckets.get("order_items", [])),       CS_ITEMS)
 
-    # --- Remove bad groupId rows from order_items ---
     BAD = {"12025DK","12025FI","12025NO","12025SE","970300","459978"}
     if not order_items.empty and "groupId" in order_items.columns:
         order_items["groupId"] = order_items["groupId"].astype(str).str.strip()
