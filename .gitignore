@@ -23,5 +23,6 @@ ENV/
 *.csv
 *.tsv
 *.log
+*.json
 .cache/
 .secrets/
