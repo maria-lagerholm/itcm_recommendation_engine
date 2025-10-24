@@ -20,7 +20,8 @@ RUN python -m pip install --upgrade \
     pip install --no-cache-dir "sentencepiece==0.1.99" && \
     pip install faiss-cpu scikit-learn==1.6.1 && \
     pip install "huggingface_hub[hf_xet]" && \
-    pip install regex
+    pip install regex && \
+    pip install cornac==2.3.5
 
 # Jupyter and additional kernel
 RUN pip install --no-cache-dir jupyterlab ipykernel \

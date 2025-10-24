@@ -7,11 +7,13 @@ from pipeline.articles_for_recs.basket_cf import run
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--cfg", required=True)
-    p.add_argument("--min-item-support", type=int, default=10)
-    p.add_argument("--min-pair-support", type=int, default=5)
-    p.add_argument("--k", type=int, default=100)
-    p.add_argument("--thr", type=float, default=0.02)
+    p.add_argument("--out", default="basket_completion.parquet")
+    p.add_argument("--q-low", type=float, default=0.5)
+    p.add_argument("--q-high", type=float, default=0.96)
+    p.add_argument("--min-support", type=int, default=12)
     p.add_argument("--topk", type=int, default=10)
+    p.add_argument("--test-size", type=float, default=0.10)
+    p.add_argument("--seed", type=int, default=42)
     args, _ = p.parse_known_args()
 
     with Path(args.cfg).open("r") as f:
@@ -19,15 +21,17 @@ def main():
 
     processed_dir = Path(cfg["processed"])
     if not processed_dir.is_absolute():
-        processed_dir = Path.cwd().joinpath(processed_dir)
+        processed_dir = Path.cwd() / processed_dir
 
     run(
         processed_dir=processed_dir,
-        min_item_support=args["min_item_support"] if isinstance(args, dict) else args.min_item_support,
-        min_pair_support=args["min_pair_support"] if isinstance(args, dict) else args.min_pair_support,
-        k_neighbors=args["k"] if isinstance(args, dict) else args.k,
-        score_threshold=args["thr"] if isinstance(args, dict) else args.thr,
-        topk=args["topk"] if isinstance(args, dict) else args.topk,
+        out_filename=args.out,
+        item_freq_q_low=args.q_low,
+        item_freq_q_high=args.q_high,
+        min_support=args.min_support,
+        topk=args.topk,
+        test_size=args.test_size,
+        seed=args.seed,
     )
 
 if __name__ == "__main__":
