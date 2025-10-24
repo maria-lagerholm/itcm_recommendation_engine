@@ -95,7 +95,7 @@ def run(
     batch_size: int = 64,
     k: int = 10,
     cos_min: float = 0.60,
-    min_price: float = 50.0,
+    min_price: float = 1.0,
     num_threads: int = 1,
 ) -> None:
     os.environ["TOKENIZERS_PARALLELISM"] = "false"

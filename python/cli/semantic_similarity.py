@@ -8,7 +8,7 @@ def main():
     p.add_argument("--batch-size", type=int, default=64)
     p.add_argument("--k", type=int, default=10)
     p.add_argument("--cos-min", type=float, default=0.60)
-    p.add_argument("--min-price", type=float, default=50.0)
+    p.add_argument("--min-price", type=float, default=1.0)
     p.add_argument("--threads", type=int, default=1)
     args, _ = p.parse_known_args()
 
