@@ -2,7 +2,7 @@
 import argparse
 import yaml
 from pathlib import Path
-from pipeline.articles_for_recs.basket_cf import run
+from pipeline.recs.basket_cf import run
 
 def main():
     p = argparse.ArgumentParser()
@@ -12,8 +12,7 @@ def main():
     p.add_argument("--q-high", type=float, default=0.96)
     p.add_argument("--min-support", type=int, default=12)
     p.add_argument("--topk", type=int, default=10)
-    p.add_argument("--test-size", type=float, default=0.10)
-    p.add_argument("--seed", type=int, default=42)
+    p.add_argument("--min-recs", type=int, default=4)
     args, _ = p.parse_known_args()
 
     with Path(args.cfg).open("r") as f:
@@ -30,8 +29,7 @@ def main():
         item_freq_q_high=args.q_high,
         min_support=args.min_support,
         topk=args.topk,
-        test_size=args.test_size,
-        seed=args.seed,
+        min_recs=args.min_recs,
     )
 
 if __name__ == "__main__":

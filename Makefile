@@ -25,11 +25,14 @@ transactions:
 basket_cf:
 	$(PYTHON) -m cli.basket_cf --cfg $(CFG) $(ARGS)
 
+top_same_brand:
+	$(PYTHON) -m cli.top_same_brand --cfg $(CFG) $(ARGS)
+
 
 combine:
 	$(PYTHON) -m cli.combine --cfg $(CFG) $(ARGS)
 
-all: customers articles articles_for_recs semantic_similarity transactions basket_cf combine
+all: customers articles articles_for_recs semantic_similarity transactions basket_cf combine top_same_brand
 
 help:
 	@echo "make customers [CFG=...] [ARGS='--fill-unknown Unknown']"

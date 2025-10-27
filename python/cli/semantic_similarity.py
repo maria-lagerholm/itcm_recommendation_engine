@@ -1,6 +1,6 @@
 import argparse, yaml
 from pathlib import Path
-from pipeline.articles_for_recs.semantic_similarity import run
+from pipeline.recs.semantic_similarity import run
 
 def main():
     p = argparse.ArgumentParser()
