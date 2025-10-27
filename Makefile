@@ -22,8 +22,8 @@ semantic_similarity:
 transactions:
 	$(PYTHON) -m cli.transactions --cfg $(CFG) $(ARGS)
 
-basket_cf:
-	$(PYTHON) -m cli.basket_cf --cfg $(CFG) $(ARGS)
+iicf_ease:
+	$(PYTHON) -m cli.iicf_ease $(ARGS)
 
 top_same_brand:
 	$(PYTHON) -m cli.top_same_brand --cfg $(CFG) $(ARGS)
@@ -32,12 +32,11 @@ top_same_brand:
 combine:
 	$(PYTHON) -m cli.combine --cfg $(CFG) $(ARGS)
 
-all: customers articles articles_for_recs semantic_similarity transactions basket_cf combine top_same_brand
+all: customers articles articles_for_recs semantic_similarity transactions combine iicf_ease top_same_brand
 
 help:
 	@echo "make customers [CFG=...] [ARGS='--fill-unknown Unknown']"
 	@echo "make transactions [CFG=...] [ARGS='--min-created 2024-06-01']"
 	@echo "make articles_for_recs [CFG=...]"
 	@echo "make semantic_similarity [CFG=...] [ARGS='--batch-size 64 --threads 1']"
-	@echo "make basket_cf [CFG=...] [ARGS='--min-item-support 10 --min-pair-support 5 --k 100 --thr 0.02 --topk 10']"
 	@echo "make combine [CFG=...]"
