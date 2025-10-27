@@ -28,7 +28,7 @@ def run(cfg_path: str, min_created: str = "2024-06-01") -> None:
 
     tx = pd.read_parquet(processed / "transactions_canonical.parquet")
     articles = pd.read_parquet(processed / "articles_clean.parquet",
-                               columns=["sku","groupId","category","brand"])
+                               columns=["sku","groupId","category","brand", "audience", "audienceId"])
     customers = pd.read_parquet(processed / "customers_clean.parquet")
 
     a_lu = prepare_article_lookup(articles)

@@ -8,7 +8,7 @@ def prepare_article_lookup(
     *,
     group_col: str = "groupId",
     sku_col: str = "sku",
-    keep_cols: tuple[str, ...] = ("category", "brand"),
+    keep_cols: tuple[str, ...] = ("category", "brand", "audience", "audienceId"),
 ) -> pd.DataFrame:
     cols = [group_col, sku_col, *keep_cols]
     a = articles[cols].drop_duplicates(subset=[group_col, sku_col])

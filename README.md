@@ -36,10 +36,7 @@ docker compose exec itcm-recsys-prod sh -lc '
 To run the recommendation pipeline:
 
 ```bash
-docker compose exec itcm-recsys-prod sh -lc '
-  set -a; . /workspace/.secrets; set +a;
-  python /workspace/scripts/run-pipeline.py
-'
+docker compose exec itcm-recsys-prod bash -lc 'bash /workspace/.devcontainer/devcron/run_pipeline.sh'
 ```
 
 Make sure you have credentials in `/workspace/.secrets/ASHILD_USER`, `/workspace/.secrets/ASHILD_PASS`, and `/workspace/.secrets/ASHILD_BASE`.

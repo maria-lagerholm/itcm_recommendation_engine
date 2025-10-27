@@ -8,6 +8,7 @@ services:
     working_dir: /workspace
     volumes:
       - .:/workspace:cached
+      - ./.secrets:/run/secrets:ro
     environment:
       PYTHONPATH: /workspace
       TZ: Europe/Stockholm
@@ -27,8 +28,8 @@ services:
       dockerfile: .devcontainer/Dockerfile
     working_dir: /workspace
     volumes:
-        - .:/workspace:cached
-        - ./.secrets:/run/secrets:ro    
+      - .:/workspace:cached
+      - ./.secrets:/run/secrets:ro
     environment:
       PYTHONPATH: /workspace
       TZ: Europe/Stockholm
