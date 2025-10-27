@@ -53,7 +53,7 @@ def preprocess_pairs(pairs: pd.DataFrame) -> tuple[pd.DataFrame, int]:
     df["cat_set"] = df["category"].map(_cat_to_set)
     return df, skipped
 
-def build_recs(filtered_pairs: pd.DataFrame, min_recs=4, max_recs=10) -> tuple[pd.DataFrame, int]:
+def build_recs(filtered_pairs: pd.DataFrame, min_recs=1, max_recs=10) -> tuple[pd.DataFrame, int]:
     recs, insufficient = {}, 0
     gdf = filtered_pairs.copy()
     gdf["transactions"] = pd.to_numeric(gdf["transactions"], errors="coerce").fillna(0)
@@ -102,7 +102,7 @@ def run(
     transactions: str = "transactions_clean.parquet",
     available: str = "articles_for_recs.parquet",
     output: str = "top_same_brand.parquet",
-    min_recs: int = 4,
+    min_recs: int = 1,
     max_recs: int = 10,
 ) -> pd.DataFrame:
     processed_dir = Path(processed_dir)

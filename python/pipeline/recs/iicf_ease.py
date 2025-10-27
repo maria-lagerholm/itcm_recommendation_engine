@@ -152,7 +152,7 @@ def _to_uir(
 def build_ease_topk_wide(
     uir,
     rel_min: float = 0.50,
-    k_min: int = 4,
+    k_min: int = 1,
     k_max: int = 10,
     out_path: Path | None = None,
 ) -> pd.DataFrame:
@@ -214,7 +214,7 @@ def run(
     item_freq_q_low: float = 0.0,
     item_freq_q_high: float = 0.96,
     rel_min: float = 0.50,
-    k_min: int = 4,
+    k_min: int = 1,
     k_max: int = 10,
 ) -> Path:
     """Full pipeline: filter → pairs → co-occur filter → freq trim → train EASE → write parquet."""

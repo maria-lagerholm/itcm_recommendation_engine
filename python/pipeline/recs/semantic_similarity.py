@@ -114,7 +114,6 @@ def run(
     groups["colors_str"] = groups["color"].apply(format_colors)
     groups["text"] = groups.apply(build_text_embed_clean, axis=1)
 
-    # group_df: only relevant columns, index reset for alignment
     group_df = groups[["groupId", "text", "color", "colors_str", "categories", "brand", "priceband"]].reset_index(drop=True)
     texts = group_df["text"].fillna("").tolist()
     N = len(texts)
@@ -126,18 +125,11 @@ def run(
         max_len = 4096
     enc.max_seq_length = min(4096, max_len)
 
-    # Determine embedding dimension
-    probe = enc.encode(
-        texts[:1] or [""],
-        batch_size=1,
-        normalize_embeddings=True,
-        convert_to_numpy=True,
-        show_progress_bar=False,
-    ).astype("float32")
+    probe = enc.encode(texts[:1] or [""], batch_size=1, normalize_embeddings=True,
+                       convert_to_numpy=True, show_progress_bar=False).astype("float32")
     d = int(probe.shape[1])
     index = faiss.IndexFlatIP(d)
 
-    # Streamed encoding and FAISS index population; also save embeddings to memmap for later read
     mmap_path = processed_dir.joinpath("semantic_embeddings.mmap")
     E_mm = np.memmap(mmap_path, dtype="float32", mode="w+", shape=(N, d))
     for s, e in _iter_batches(N, batch_size):
@@ -153,7 +145,7 @@ def run(
     del probe
     E_mm.flush()
 
-    # Batched similarity search, embeddings read-only from disk
+    # Search
     I_all = np.empty((N, k + 1), dtype=np.int64)
     S_all = np.empty((N, k + 1), dtype=np.float32)
     E_ro = np.memmap(mmap_path, dtype="float32", mode="r", shape=(N, d))
@@ -164,23 +156,33 @@ def run(
         S_all[s:e, :] = S
     del E_ro
 
-    # For each product, get k (non-self, above similarity threshold) indices
-    neighbors = []
+    # Build wide rows with Top/Score; skip items with <1 rec
+    ids = group_df["groupId"].astype(str).to_numpy()
+    rows = []
     for i in range(N):
         js, ss = I_all[i], S_all[i]
+        # filter: non-self + above threshold
         m = (js != i) & (ss >= cos_min)
-        js = js[m][:k]
-        neighbors.append(js.tolist())
+        js, ss = js[m], ss[m]
+        if js.size == 0:
+            continue  # <1 rec → skip this Product ID entirely
+        # truncate
+        js, ss = js[:k], ss[:k]
+        # build row: [Product ID, Top1, Score1, ..., TopK, ScoreK] with None padding
+        row = [ids[i]]
+        for r in range(k):
+            if r < js.size:
+                row.append(ids[js[r]])
+                row.append(float(ss[r]))
+            else:
+                row.append(None)
+                row.append(None)
+        rows.append(row)
 
-    gids = group_df["groupId"].astype(str).tolist()
-    rows = []
-    for i, gid in enumerate(gids):
-        rec_ids = group_df.iloc[neighbors[i]]["groupId"].astype(str).tolist()
-        rows.append([gid] + rec_ids + [None] * (k - len(rec_ids)))
-    wide = pd.DataFrame(rows, columns=["Product ID"] + [f"Top {r}" for r in range(1, k + 1)])
+    cols = ["Product ID"] + [c for r in range(1, k + 1) for c in (f"Top {r}", f"Score {r}")]
+    wide = pd.DataFrame(rows, columns=cols)
     wide.to_parquet(processed_dir.joinpath("semantic_similarity_recs.parquet"), index=False)
 
-    # Remove temp mmap file
     try:
         os.remove(mmap_path)
     except Exception:

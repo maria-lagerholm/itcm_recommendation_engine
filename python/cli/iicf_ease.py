@@ -16,7 +16,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--item-freq-q-low", type=float, default=0.0)
     p.add_argument("--item-freq-q-high", type=float, default=0.96)
     p.add_argument("--rel-min", type=float, default=0.50)
-    p.add_argument("--k-min", type=int, default=4)
+    p.add_argument("--k-min", type=int, default=1)
     p.add_argument("--k-max", type=int, default=10)
     return p.parse_args()
 

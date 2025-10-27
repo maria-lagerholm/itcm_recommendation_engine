@@ -22,7 +22,7 @@ def main():
     transactions = cfg.get("transactions", "transactions_clean.parquet")
     available    = cfg.get("available",    "articles_for_recs.parquet")
     output       = cfg.get("output",       "top_same_brand.parquet")
-    min_recs     = int(cfg.get("min_recs", 4))
+    min_recs     = int(cfg.get("min_recs", 1))
     max_recs     = int(cfg.get("max_recs", 10))
 
     run_core(
