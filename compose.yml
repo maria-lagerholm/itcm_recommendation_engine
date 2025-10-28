@@ -34,3 +34,6 @@ services:
       PYTHONPATH: /workspace
       TZ: Europe/Stockholm
     restart: unless-stopped
+    mem_limit: "12g"
+    shm_size: "2g"
+    cpus: "6"

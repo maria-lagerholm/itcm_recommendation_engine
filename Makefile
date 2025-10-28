@@ -32,7 +32,10 @@ top_same_brand:
 combine:
 	$(PYTHON) -m cli.combine --cfg $(CFG) $(ARGS)
 
-all: customers articles articles_for_recs semantic_similarity transactions combine iicf_ease top_same_brand
+lift:
+	$(PYTHON) -m cli.lift --cfg $(CFG) $(ARGS)
+
+all: customers articles articles_for_recs semantic_similarity transactions combine iicf_ease top_same_brand lift
 
 help:
 	@echo "make customers [CFG=...] [ARGS='--fill-unknown Unknown']"
