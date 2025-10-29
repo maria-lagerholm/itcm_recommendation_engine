@@ -12,6 +12,7 @@ from pipeline.articles.category import normalize_categories
 from pipeline.articles.brand import normalize_brands
 from pipeline.articles.price import fill_priceSEK_no_decimals
 from pipeline.articles.audience import clean_audience
+from pipeline.articles.size import dedup_size
 
 def run(cfg_path: str) -> None:
     cfg = load_cfg(cfg_path)
@@ -24,6 +25,7 @@ def run(cfg_path: str) -> None:
     articles = normalize_categories(articles)
     articles = normalize_brands(articles)
     articles = clean_audience(articles)
+    articles['size'] = articles['size'].map(dedup_size)
     
     overrides = {
         "270607-5254": 1310,

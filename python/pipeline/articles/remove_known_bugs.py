@@ -2,7 +2,7 @@ import pandas as pd
 
 DROP_COLS_DEFAULT: tuple[str, ...] = (
     "status","incommingQuantity","length","width","height","weight",
-    "fabricId","fabric","description","colorId","color","sizeId","size","publishedDate","quantity"
+    "fabricId","fabric","description","colorId","color","sizeId","publishedDate","quantity"
 )
 PRICE_COLS_DEFAULT: tuple[str, ...] = ("priceSEK","priceEUR","priceNOK","priceDKK")
 
