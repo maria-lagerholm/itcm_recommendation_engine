@@ -35,7 +35,10 @@ combine:
 lift:
 	$(PYTHON) -m cli.lift --cfg $(CFG) $(ARGS)
 
-all: customers articles articles_for_recs semantic_similarity transactions combine iicf_ease top_same_brand lift
+hybrid:
+	$(PYTHON) -m cli.hybrid --cfg $(CFG) $(ARGS)
+
+all: customers articles articles_for_recs semantic_similarity transactions combine iicf_ease top_same_brand lift hybrid
 
 help:
 	@echo "make customers [CFG=...] [ARGS='--fill-unknown Unknown']"
