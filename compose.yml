@@ -1,7 +1,7 @@
 services:
   itcm-recsys:
     container_name: itcm-recsys
-    platform: linux/arm64/v8
+    platform: linux/arm64/v8  # ARM Macs/servers; remove on x86_64
     build:
       context: .
       dockerfile: .devcontainer/Dockerfile
@@ -12,6 +12,7 @@ services:
     environment:
       PYTHONPATH: /workspace
       TZ: Europe/Stockholm
+      VESPA_ENDPOINT: http://vespa:8080
     profiles: ["dev"]
     command: bash -lc "sleep infinity"
     ports:
@@ -19,10 +20,13 @@ services:
     mem_limit: "12g"
     shm_size: "2g"
     cpus: "6"
+    depends_on:
+      vespa:
+        condition: service_healthy
 
   itcm-recsys-prod:
     container_name: itcm-recsys-prod
-    platform: linux/arm64/v8
+    platform: linux/arm64/v8  # ARM Macs/servers; remove on x86_64
     build:
       context: .
       dockerfile: .devcontainer/Dockerfile
@@ -33,7 +37,43 @@ services:
     environment:
       PYTHONPATH: /workspace
       TZ: Europe/Stockholm
+      VESPA_ENDPOINT: http://vespa:8080
     restart: unless-stopped
     mem_limit: "12g"
     shm_size: "2g"
     cpus: "6"
+    depends_on:
+      vespa:
+        condition: service_healthy
+
+  vespa:
+    image: vespaengine/vespa:8.600.35
+    container_name: vespa
+    platform: linux/arm64/v8  # ARM Macs/servers; remove on x86_64
+    profiles: ["dev", "search"]   # start with: docker compose --profile dev up
+    ports:
+      - "8080:8080"      # HTTP (query + document API)
+      - "19071:19071"    # config server
+    environment:
+      TZ: Europe/Stockholm
+      VESPA_CONFIGSERVER_JVMARGS: "-Xms1g -Xmx1g"
+    volumes:
+      - ./vespa-app:/app                  
+      - vespa-data:/opt/vespa/var
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:19071/ApplicationStatus"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+    command: >
+      bash -lc "
+        if [ -d /app ]; then
+          /opt/vespa/bin/vespa-deploy prepare /app &&
+          /opt/vespa/bin/vespa-deploy activate ;
+        fi &&
+        /opt/vespa/bin/vespa-start-services &&
+        tail -f /dev/null
+      "
+
+volumes:
+  vespa-data:
